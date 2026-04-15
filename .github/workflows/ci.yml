@@ -12,8 +12,8 @@ jobs:
     name: Build (${{ matrix.os }}/${{ matrix.arch }})
     runs-on: ubuntu-latest
 
-  env:
-    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     strategy:
       matrix:
@@ -33,7 +33,6 @@ jobs:
     steps:
       - name: 📥 Checkout do repositório
         uses: actions/checkout@v4
-
 
       - name: ⚙️ Configurar ambiente Go
         uses: actions/setup-go@v5
