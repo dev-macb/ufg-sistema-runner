@@ -1,10 +1,9 @@
 package cmd
 
 import (
-	"errors"
-	"fmt"
 	"os"
-
+	"fmt"
+	"errors"
 	"github.com/spf13/cobra"
 )
 

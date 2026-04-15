@@ -27,5 +27,9 @@ func configurarVersao(v string) {
 
 
 func executarVersao(cmd *cobra.Command, args []string) {
-	fmt.Printf("assinador versão %s\n", versaoApp)
+	fmt.Print(`╔═╗┌─┐┌─┐┬┌┐┌┌─┐┌┬┐┌─┐┬─┐
+╠═╣└─┐└─┐││││├─┤ │││ │├┬┘
+╩ ╩└─┘└─┘┴┘└┘┴ ┴─┴┘└─┘┴└─
+`)
+	fmt.Printf("Versão: %s\n", versaoApp)
 }

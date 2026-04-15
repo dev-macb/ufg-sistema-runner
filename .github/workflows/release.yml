@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write       # criar GitHub Release e fazer upload de artefatos
+  id-token: write       # OIDC token para Cosign keyless signing
+
+jobs:
+  release:
+    name: Build, Sign & Publish
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            ext: ""
+          - os: windows
+            arch: amd64
+            ext: ".exe"
+          - os: darwin
+            arch: amd64
+            ext: ""
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Go ──────────────────────────────────────────────────────────────
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # ── 3. Cosign ──────────────────────────────────────────────────────────
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      # ── 4. Build ───────────────────────────────────────────────────────────
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "0"
+        run: |
+          BINARY="assinatura-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}"
+          go build \
+            -ldflags="-s -w -X main.Versao=${{ github.ref_name }}" \
+            -o "${BINARY}" \
+            .
+          echo "BINARY=${BINARY}" >> "$GITHUB_ENV"
+
+      # ── 5. SHA-256 checksum ────────────────────────────────────────────────
+      - name: Generate SHA256 checksum
+        run: |
+          sha256sum "${BINARY}" > "${BINARY}.sha256"
+
+      # ── 6. Cosign keyless signing ──────────────────────────────────────────
+      #
+      #   Produz dois arquivos por binário:
+      #     <binary>.sig  — assinatura base64
+      #     <binary>.pem  — certificado de identidade (cadeia OIDC)
+      #
+      - name: Sign binary with Cosign (keyless)
+        run: |
+          cosign sign-blob \
+            --yes \
+            --output-signature "${BINARY}.sig" \
+            --output-certificate "${BINARY}.pem" \
+            "${BINARY}"
+
+      # ── 7. Upload para o GitHub Release ───────────────────────────────────
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ env.BINARY }}
+            ${{ env.BINARY }}.sha256
+            ${{ env.BINARY }}.sig
+            ${{ env.BINARY }}.pem
+          generate_release_notes: true

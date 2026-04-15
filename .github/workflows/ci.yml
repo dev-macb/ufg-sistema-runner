@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }}/${{ matrix.arch }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            ext: ""
+          - os: windows
+            arch: amd64
+            ext: ".exe"
+          - os: darwin
+            arch: amd64
+            ext: ""
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "0"
+        run: |
+          go build \
+            -ldflags="-s -w -X main.Versao=${GITHUB_SHA::8}" \
+            -o assinatura-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }} \
+            .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: assinatura-${{ matrix.os }}-${{ matrix.arch }}
+          path: assinatura-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}
+          if-no-files-found: error
