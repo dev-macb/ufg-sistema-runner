@@ -18,9 +18,11 @@ jobs:
           - os: linux
             arch: amd64
             ext: ""
+
           - os: windows
             arch: amd64
             ext: ".exe"
+
           - os: darwin
             arch: amd64
             ext: ""
@@ -41,11 +43,12 @@ jobs:
           GOOS: ${{ matrix.os }}
           GOARCH: ${{ matrix.arch }}
           CGO_ENABLED: "0"
+          
         run: |
           go build \
-            -ldflags="-s -w -X main.version=${GITHUB_SHA::8}" \
+            -ldflags="-s -w -X main.versaoApp=${GITHUB_SHA::8}" \
             -o assinatura-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }} \
-            ./cmd/assinatura
+            .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
