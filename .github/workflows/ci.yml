@@ -12,6 +12,9 @@ jobs:
     name: Build (${{ matrix.os }}/${{ matrix.arch }})
     runs-on: ubuntu-latest
 
+  env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     strategy:
       matrix:
         include:
@@ -37,6 +40,7 @@ jobs:
         with:
           go-version-file: apps/cli-assinador/go.mod
           cache: true
+          cache-dependency-path: apps/cli-assinador/go.sum
 
 
       - name: 🧪 Executar testes unitários
