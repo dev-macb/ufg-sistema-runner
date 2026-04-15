@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: ["main"]
+
   pull_request:
     branches: ["main"]
 
@@ -31,7 +32,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: apps/cli-assinador/go.mod
           cache: true
 
       - name: Build
