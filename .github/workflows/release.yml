@@ -6,13 +6,16 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+"
 
 permissions:
-  contents: write       # criar GitHub Release e fazer upload de artefatos
-  id-token: write       # OIDC token para Cosign keyless signing
+  contents: write
+  id-token: write
 
 jobs:
   release:
     name: Build, Sign & Publish
     runs-on: ubuntu-latest
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     strategy:
       matrix:
@@ -20,69 +23,73 @@ jobs:
           - os: linux
             arch: amd64
             ext: ""
+            
           - os: windows
             arch: amd64
             ext: ".exe"
+
           - os: darwin
             arch: amd64
             ext: ""
 
     steps:
-      # ── 1. Checkout ────────────────────────────────────────────────────────
-      - name: Checkout
+      - name: 📥 Checkout do repositório
         uses: actions/checkout@v4
 
-      # ── 2. Go ──────────────────────────────────────────────────────────────
-      - name: Setup Go
+
+      - name: ⚙️ Configurar ambiente Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: apps/cli-assinador/go.mod
           cache: true
+          cache-dependency-path: apps/cli-assinador/go.sum
 
-      # ── 3. Cosign ──────────────────────────────────────────────────────────
-      - name: Install Cosign
+
+      - name: 🔐 Instalar Cosign
         uses: sigstore/cosign-installer@v3
 
-      # ── 4. Build ───────────────────────────────────────────────────────────
-      - name: Build binary
+
+      - name: 🔨 Compilar binário
+        working-directory: apps/cli-assinador
         env:
           GOOS: ${{ matrix.os }}
           GOARCH: ${{ matrix.arch }}
           CGO_ENABLED: "0"
         run: |
+          mkdir -p ../../dist
+
           BINARY="assinatura-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}"
+
           go build \
-            -ldflags="-s -w -X main.Versao=${{ github.ref_name }}" \
-            -o "${BINARY}" \
+            -ldflags="-s -w -X main.versaoApp=${{ github.ref_name }}" \
+            -o "../../dist/${BINARY}" \
             .
+
           echo "BINARY=${BINARY}" >> "$GITHUB_ENV"
 
-      # ── 5. SHA-256 checksum ────────────────────────────────────────────────
-      - name: Generate SHA256 checksum
-        run: |
-          sha256sum "${BINARY}" > "${BINARY}.sha256"
 
-      # ── 6. Cosign keyless signing ──────────────────────────────────────────
-      #
-      #   Produz dois arquivos por binário:
-      #     <binary>.sig  — assinatura base64
-      #     <binary>.pem  — certificado de identidade (cadeia OIDC)
-      #
-      - name: Sign binary with Cosign (keyless)
+      - name: 🔑 Gerar SHA256
+        working-directory: dist
+        run: |
+          sha256sum "${{ env.BINARY }}" > "${{ env.BINARY }}.sha256"
+
+
+      - name: ✍️ Assinar binário com Cosign
+        working-directory: dist
         run: |
           cosign sign-blob \
             --yes \
-            --output-signature "${BINARY}.sig" \
-            --output-certificate "${BINARY}.pem" \
-            "${BINARY}"
+            --output-signature "${{ env.BINARY }}.sig" \
+            --output-certificate "${{ env.BINARY }}.pem" \
+            "${{ env.BINARY }}"
 
-      # ── 7. Upload para o GitHub Release ───────────────────────────────────
-      - name: Upload release assets
+
+      - name: 📦 Publicar artefatos no GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ${{ env.BINARY }}
-            ${{ env.BINARY }}.sha256
-            ${{ env.BINARY }}.sig
-            ${{ env.BINARY }}.pem
+            dist/${{ env.BINARY }}
+            dist/${{ env.BINARY }}.sha256
+            dist/${{ env.BINARY }}.sig
+            dist/${{ env.BINARY }}.pem
           generate_release_notes: true
